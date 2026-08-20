@@ -24,20 +24,20 @@
   const GREEN_TXT='#07845d', YELLOW_TXT='#7d700a';
   const INK='#000000', MUTED='#6b6b6b', LINE='#ececec', PAGE='#ffffff';
 
-  const STORAGE_KEY = 'journey-anim-pim-t';
   const EPS = 1e-6;
 
   class Stage extends React.Component {
     constructor(props) {
       super(props);
-      const { duration } = props;
-      const initT = (() => { try { const v = parseFloat(localStorage.getItem(STORAGE_KEY)); return isNaN(v) ? 0 : Math.min(v, duration); } catch(e) { return 0; } })();
+      // Always opens on frame zero. Playback position is intentionally not saved:
+      // a presenter who rehearses to the end would otherwise load straight into the
+      // final frame with every stage already revealed.
       // tCur / playingFlag are the authoritative clock. React batches setState, so
       // reading this.state inside the rAF tick can be a frame or more stale, which
       // is enough to step straight over a hold. State is a mirror for rendering only.
-      this.tCur = initT;
+      this.tCur = 0;
       this.playingFlag = true;
-      this.state = { t: initT, playing: true, vp: { s: 0.001, ox: 0, oy: 0 } };
+      this.state = { t: 0, playing: true, vp: { s: 0.001, ox: 0, oy: 0 } };
       this.lastTime = null;
       this.rafId = null;
       this.el = null;
@@ -48,8 +48,6 @@
     }
 
     sync() { this.setState({ t: this.tCur, playing: this.playingFlag }); }
-
-    persist(v) { try { localStorage.setItem(STORAGE_KEY, v); } catch(e) {} }
 
     // Next hold strictly ahead of `time`, or null when none remain. The guard must
     // be EPS and not a wider margin: anything larger than one frame's dt makes a
@@ -80,7 +78,6 @@
           if (hold !== null && nt >= hold - EPS) { nt = hold; this.playingFlag = false; }
           if (nt >= this.props.duration - EPS) { nt = this.props.duration; this.playingFlag = false; }
           this.tCur = nt;
-          this.persist(nt);
           this.sync();
         }
         this.lastTime = now;
@@ -114,7 +111,6 @@
       this.tCur = 0;
       this.playingFlag = true;
       this.lastTime = null;
-      this.persist(0);
       this.sync();
     }
 
@@ -133,7 +129,6 @@
     onScrub(v) {
       this.tCur = v;
       this.playingFlag = false;
-      this.persist(v);
       this.sync();
     }
 
